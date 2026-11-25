@@ -1,6 +1,6 @@
 numpy
 pandas
-scikit-learn>=1.4
+scikit-learn==1.9.1   # même version que celle qui a entraîné les modèles .joblib
 matplotlib
 joblib
 pillow

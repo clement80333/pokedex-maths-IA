@@ -6,7 +6,7 @@ Le code suit `Consignes.pdf` et couvre les 3 niveaux, avec une appli graphique f
 |---|---|
 | `pokedex_app.py` | **L'application à lancer** (interface Pokédex, 4 onglets) |
 | `niveau1/` | Données tabulaires : clustering K-Means, probabilité légendaire, type d'après les stats + notebook |
-| `niveau2_3/` | Images : types d'après une image (niv. 2), identification du Pokémon (niv. 3) |
+| `niveau2_3/` | Images : types d'après une image (niv. 2), identification du Pokémon (niv. 3), modèles entraînés + notebook |
 | `pokemon.csv` | Jeu de données tabulaire (Kaggle) |
 
 ---
@@ -77,7 +77,22 @@ les dossiers `niveau1` et `niveau2_3` comme des paquets Python. Dans VS Code, ou
 ## 4. Notebook et analyses
 
 - Niveau 1 : `jupyter notebook niveau1/analyse_niveau1.ipynb`
-- Niveaux 2-3 : résultats dans `niveau2_3/resultats/` (générés par `entrainer.py`)
+- Niveaux 2-3 : `jupyter notebook niveau2_3/analyse_niveaux2_3.ipynb` (il relit `niveau2_3/resultats/`, produit par `entrainer.py`)
+
+## Résultats niveaux 2-3 (jeu de test, 20 % des images)
+
+| Tâche | Meilleure approche | Score |
+|---|---|---|
+| Identifier le Pokémon (niv. 3) | CNN + régression logistique | 85,5 % d'accuracy, 95,5 % en top 5, 98,5 % des Pokémon reconnus sur au moins la moitié de leurs images |
+| Types, Pokémon déjà vu (niv. 2) | Via l'identification | 89 % de types exactement justes |
+| Types, Pokémon jamais vu (niv. 2) | CNN + MLP | 27 % exacts, 49 % avec au moins un type juste (référence : 13 %) |
+
+Les modèles fournis ont été entraînés sur 15 888 images de **132 Pokémon**. Une dizaine de Pokémon du dataset
+manquent, parce que le transfert a été coupé. Pour tout ré-entraîner sur le dataset complet, relance
+`entrainer.py` (étape 2).
+
+`scikit-learn` est fixé à la version 1.9.1 dans `requirements.txt` : les fichiers `.joblib` ne se rechargent de
+façon fiable qu'avec la version qui les a créés. Si tu changes de version, relance `entrainer.py`.
 
 ## Méthode (résumé)
 

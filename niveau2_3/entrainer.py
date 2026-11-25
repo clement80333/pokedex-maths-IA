@@ -103,7 +103,7 @@ def main():
     print(res_id.round(3).to_string())
 
     # Pokémon les moins bien reconnus (pour l'analyse des limites)
-    pire = rappels_id[meilleur_id].sort_values().head(15)
+    pire = rappels_id[meilleur_id].sort_values().head(15).rename("taux_de_reconnaissance")
     pire.to_csv(im.DOSSIER_RESULTATS / "niveau3_pokemon_les_moins_reconnus.csv")
 
     fig, ax = plt.subplots(figsize=(8, 4))

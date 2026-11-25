@@ -155,41 +155,45 @@ class ExtracteurCNN:
 
 def extraire_caracteristiques(df, chemin_cache, taille_lot=128):
     """
-    Calcule (ou relit depuis le cache) les caractéristiques de toutes les images.
-    Le calcul prend plusieurs minutes : on le sauvegarde dans un fichier .npz
-    pour ne pas le refaire à chaque fois.
+    Calcule les caractéristiques de toutes les images (CNN + histogramme).
+    Le calcul prend plusieurs minutes : les résultats sont sauvegardés dans un
+    fichier .npz (cache) et seules les NOUVELLES images sont calculées aux
+    lancements suivants.
     Renvoie (X_cnn, X_hist, df_filtré) — les images illisibles sont retirées.
     """
     chemin_cache = Path(chemin_cache)
+    cache = {}  # chemin -> (vecteur CNN, histogramme)
     if chemin_cache.exists():
         d = np.load(chemin_cache, allow_pickle=True)
-        if list(d["chemins"]) == df["chemin"].tolist():
-            ok = d["ok"]
-            return d["X_cnn"], d["X_hist"], df[ok].reset_index(drop=True)
-        print("Cache obsolète (les images ont changé) : recalcul.")
+        cache = {c: (a, h) for c, a, h in zip(d["chemins"], d["X_cnn"], d["X_hist"])}
 
-    extracteur = ExtracteurCNN()
-    n = len(df)
-    X_cnn = np.zeros((n, 1280), np.float32)
-    X_hist = np.zeros((n, 256), np.float32)
-    ok = np.zeros(n, bool)
-    for debut in range(0, n, taille_lot):
-        idx, images = [], []
-        for i in range(debut, min(debut + taille_lot, n)):
-            try:
-                images.append(preparer_image(df["chemin"].iat[i]))
-                idx.append(i)
-            except Exception as e:  # fichier corrompu, format exotique...
-                print(f"  image ignorée ({e.__class__.__name__}) : {df['chemin'].iat[i]}")
-        if images:
-            X_cnn[idx] = extracteur(np.stack(images))
-            X_hist[idx] = [histogramme_couleurs(im) for im in images]
-            ok[idx] = True
-        print(f"  {min(debut + taille_lot, n)}/{n} images traitées", end="\r")
-    print()
-    np.savez_compressed(chemin_cache, X_cnn=X_cnn[ok], X_hist=X_hist[ok], ok=ok,
-                        chemins=np.array(df["chemin"].tolist(), dtype=object))
-    return X_cnn[ok], X_hist[ok], df[ok].reset_index(drop=True)
+    a_calculer = [c for c in df["chemin"] if c not in cache]
+    if a_calculer:
+        print(f"{len(a_calculer)} image(s) à traiter ({len(cache)} déjà en cache)")
+        extracteur = ExtracteurCNN()
+        for debut in range(0, len(a_calculer), taille_lot):
+            lot, images = [], []
+            for c in a_calculer[debut:debut + taille_lot]:
+                try:
+                    images.append(preparer_image(c))
+                    lot.append(c)
+                except Exception as e:  # fichier corrompu, format exotique...
+                    print(f"  image ignorée ({e.__class__.__name__}) : {c}")
+            if images:
+                feats = extracteur(np.stack(images))
+                for c, f, im in zip(lot, feats, images):
+                    cache[c] = (f, histogramme_couleurs(im))
+            print(f"  {min(debut + taille_lot, len(a_calculer))}/{len(a_calculer)} images traitées", end="\r")
+        print()
+        chemins = list(cache)
+        np.savez_compressed(chemin_cache, chemins=np.array(chemins, dtype=object),
+                            X_cnn=np.stack([cache[c][0] for c in chemins]),
+                            X_hist=np.stack([cache[c][1] for c in chemins]))
+
+    df = df[df["chemin"].isin(cache)].reset_index(drop=True)
+    X_cnn = np.stack([cache[c][0] for c in df["chemin"]])
+    X_hist = np.stack([cache[c][1] for c in df["chemin"]])
+    return X_cnn, X_hist, df
 
 
 # ---------------------------------------------------------------------------
