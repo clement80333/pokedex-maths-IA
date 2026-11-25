@@ -10,12 +10,21 @@ SCREEN = "#edf5e9"
 
 
 class FilterDialog:
-    """Gère la fenêtre et les choix de filtres du Pokédex."""
+    """Affiche les filtres et transmet leurs changements à l'application.
+
+    Les variables de filtre restent gérées par l'application principale :
+    cette classe ne fait que les présenter dans une fenêtre séparée.
+    """
 
     def __init__(
         self, parent, filtres_types, filtres_generations,
         filtres_legendaire, on_change, on_clear,
     ):
+        """Mémorise les filtres existants et les actions à appeler.
+
+        ``on_change`` recalcule la liste après un changement de case.
+        ``on_clear`` décoche les filtres et actualise cette liste.
+        """
         self.parent = parent
         self.filtres_types = filtres_types
         self.filtres_generations = filtres_generations
@@ -25,6 +34,7 @@ class FilterDialog:
         self.fenetre = None
 
     def ouvrir(self):
+        """Ouvre la fenêtre des filtres, ou ramène au premier plan l'existante."""
         if self.fenetre is not None and self.fenetre.winfo_exists():
             self.fenetre.deiconify()
             self.fenetre.lift()
@@ -59,6 +69,7 @@ class FilterDialog:
         for index, (type_pokemon, variable) in enumerate(
             self.filtres_types.items()
         ):
+            # Répartit les types sur trois colonnes pour limiter la hauteur.
             tk.Checkbutton(
                 cadre_types, text=type_pokemon, variable=variable,
                 command=self.on_change, font=("Segoe UI", 9),
@@ -113,6 +124,7 @@ class FilterDialog:
         ).pack(side="right")
 
     def fermer(self):
+        """Ferme la fenêtre si elle existe et libère sa référence."""
         if self.fenetre is not None:
             if self.fenetre.winfo_exists():
                 self.fenetre.destroy()

@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from pokedex_data import SORT_COLUMNS, STAT_COLUMNS
+from pokedex_classification_view import ClassificationView
 from pokedex_filter_dialog import FilterDialog
 from pokedex_images import PokemonImageService
 from pokedex_stats_view import AverageStatsView
@@ -194,8 +195,14 @@ class PokedexApp:
         self.onglets.pack(fill="both", expand=True)
         page_pokedex = tk.Frame(self.onglets, bg=BG, padx=14, pady=14)
         self.vue_moyennes = AverageStatsView(self.onglets, self.donnees)
+        self.vue_classification = ClassificationView(
+            self.onglets, self.pokedex
+        )
         self.onglets.add(page_pokedex, text="  Pokédex  ")
         self.onglets.add(self.vue_moyennes, text="  Moyennes par type  ")
+        self.onglets.add(
+            self.vue_classification, text="  Classification  "
+        )
 
         filtres = tk.Frame(page_pokedex, bg=WHITE, padx=18, pady=14)
         filtres.pack(fill="x", pady=(0, 12))
