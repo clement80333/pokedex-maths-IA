@@ -19,8 +19,10 @@ où le dossier contient un sous-dossier par Pokémon (Abra/, Aerodactyl/, ...).
 """
 
 import argparse
+import sys
 import time
 import warnings
+from pathlib import Path
 
 import joblib
 import matplotlib
@@ -32,7 +34,9 @@ from sklearn.base import clone
 from sklearn.model_selection import GroupKFold, train_test_split
 from sklearn.preprocessing import MultiLabelBinarizer
 
-import images_ml as im
+# Permet "from niveau2_3 import ..." même quand on lance ce fichier directement
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from niveau2_3 import images_ml as im  # noqa: E402
 
 warnings.filterwarnings("ignore")
 

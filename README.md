@@ -13,18 +13,28 @@ Le code suit `Consignes.pdf` et couvre les 3 niveaux, avec une appli graphique f
 
 ## 1. Installation (une seule fois)
 
-**Version de Python** : TensorFlow (utilisé pour les images) ne suit pas toujours les toutes dernières
-versions de Python. Le plus sûr est **Python 3.12** (ou 3.11 / 3.13). Vérifie avec `py --list`.
+**Version de Python** : 3.11, 3.12 ou 3.13. TensorFlow, utilisé pour les images, ne suit pas toujours
+les toutes dernières versions de Python. Vérifie avec `py --list`.
 
 Dans un terminal (PowerShell), à la racine du dépôt :
 
 ```powershell
-py -3.12 -m venv .venv          # crée un environnement Python isolé
+py -3.13 -m venv .venv          # crée un environnement Python isolé
 .venv\Scripts\activate          # l'active (à refaire à chaque nouveau terminal)
 pip install -r requirements.txt
 ```
 
-Sans TensorFlow, l'appli marche quand même, mais les onglets Image et Caméra sont désactivés.
+Ce qu'installe `requirements.txt`, et à quoi ça sert :
+
+| Paquet | Sert à |
+|---|---|
+| numpy, pandas, scikit-learn, matplotlib, joblib | Les modèles de ML et les graphes (tous les niveaux) |
+| pillow | Afficher et lire les images |
+| **tensorflow** | **L'onglet Image** : le réseau MobileNetV2 transforme l'image en caractéristiques. Ses poids (9 Mo) se téléchargent tout seuls au premier lancement |
+| **tkinterdnd2** | Le **glisser-déposer** d'une image dans l'appli. Sans lui, on passe par le bouton « choisir une image » |
+| jupyter, nbformat | Ouvrir le notebook |
+
+Pas besoin de torch ni d'opencv. Sans TensorFlow, l'appli marche quand même, mais l'onglet Image est désactivé.
 
 ## 2. Entraîner les modèles d'images (une seule fois, niveaux 2 et 3)
 
@@ -55,8 +65,14 @@ python pokedex_app.py
 |---|---|---|
 | Pokédex | 3 | Liste des 800 Pokémon : recherche, filtre par type, **regroupement par type**, tri par stat, fiche complète (stats, types, légendaire, groupe) |
 | Stats → IA | 1 | 6 stats saisies → groupe (clustering), probabilité d'être légendaire, types probables |
-| Image | 2 | Image choisie → type(s) prédit(s) + Pokémon reconnu |
-| Caméra | 3 | Webcam → capture → Pokémon identifié → bouton vers sa fiche |
+| Image | 2 et 3 | Image **glissée-déposée** (ou choisie) → type(s) prédit(s) + Pokémon reconnu → bouton vers sa fiche |
+
+**Important** : lance l'appli depuis la **racine du dépôt** (`python pokedex_app.py`), parce que l'appli importe
+les dossiers `niveau1` et `niveau2_3` comme des paquets Python. Dans VS Code, ouvre le dossier du dépôt
+(pas un sous-dossier) pour que Pylance trouve les imports.
+
+> La consigne du niveau 3 parle de la caméra. On l'a remplacée volontairement par le dépôt d'une image.
+> Pense à le justifier dans le rapport.
 
 ## 4. Notebook et analyses
 

@@ -7,27 +7,32 @@ Lancement (depuis la racine du dépôt) :
 Onglets :
     1. Pokédex  : consulter les Pokémon, les filtrer / regrouper / trier par type (niveau 3)
     2. Stats    : saisir 6 statistiques -> groupe, probabilité légendaire, types (niveau 1)
-    3. Image    : charger une image -> types prédits + Pokémon reconnu (niveaux 2 et 3)
-    4. Caméra   : montrer un Pokémon à la webcam -> identification + fiche (niveau 3)
+    3. Image    : déposer (glisser-déposer) ou choisir l'image d'un Pokémon
+                  -> types prédits (niveau 2) + Pokémon reconnu et sa fiche (niveau 3)
 
-Les onglets Image et Caméra ont besoin des modèles entraînés par
-niveau2_3/entrainer.py (fichiers niveau2_3/modeles/*.joblib) et de TensorFlow.
-S'ils manquent, l'appli marche quand même, sans ces deux onglets.
+L'onglet Image a besoin des modèles entraînés par niveau2_3/entrainer.py
+(fichiers niveau2_3/modeles/*.joblib) et de TensorFlow. S'ils manquent,
+l'appli marche quand même, sans cet onglet.
+Le glisser-déposer utilise le paquet tkinterdnd2 ; sans lui, on garde le
+bouton « Choisir une image… ».
 """
 
-import sys
 import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+# niveau1/ et niveau2_3/ sont des "paquets" Python (ils contiennent un __init__.py) :
+# on les importe donc avec leur nom de dossier. Il faut lancer l'appli depuis la
+# racine du dépôt :  python pokedex_app.py
+from niveau1.pokedex_ml import STATS, STATS_FR, PokedexIA  # niveau 1
+
 RACINE = Path(__file__).resolve().parent
-sys.path.insert(0, str(RACINE / "niveau1"))
-sys.path.insert(0, str(RACINE / "niveau2_3"))
 
-import pandas as pd  # noqa: E402
-
-from pokedex_ml import STATS, STATS_FR, PokedexIA  # noqa: E402  (niveau 1)
+try:  # glisser-déposer (optionnel) : pip install tkinterdnd2
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+except ImportError:
+    TkinterDnD = DND_FILES = None
 
 try:  # Pillow sert à afficher les images ; sans lui, pas d'images (mais le reste marche)
     from PIL import Image, ImageTk
@@ -84,7 +89,6 @@ class PokedexApp:
         self.erreur_reco = "chargement des modèles d'images..."
         threading.Thread(target=self._charger_reco, daemon=True).start()
 
-        self.camera = None
         self._image_ecran = None   # garder une référence, sinon Tk efface l'image
         self._derniere_image = None
 
@@ -113,9 +117,13 @@ class PokedexApp:
         # Écran de gauche (image + nom)
         gauche = tk.Frame(corps, bg=GRIS, bd=4, relief="ridge")
         gauche.pack(side="left", fill="y", padx=(0, 12))
-        self.ecran = tk.Label(gauche, bg=ECRAN, width=TAILLE_ECRAN, height=TAILLE_ECRAN,
-                              text="", fg=ECRAN_TEXTE, font=POLICE_TITRE, compound="center")
-        self.ecran.pack(padx=10, pady=10)
+        # Cadre de taille FIXE en pixels : un Label sans image compte sa largeur en
+        # caractères (300 caractères = tout l'écran !), d'où ce cadre qui l'encadre.
+        cadre_ecran = tk.Frame(gauche, width=TAILLE_ECRAN, height=TAILLE_ECRAN, bg=ECRAN)
+        cadre_ecran.pack(padx=10, pady=10)
+        cadre_ecran.pack_propagate(False)
+        self.ecran = tk.Label(cadre_ecran, bg=ECRAN, text="POKÉDEX", fg=ECRAN_TEXTE, font=POLICE_TITRE)
+        self.ecran.pack(fill="both", expand=True)
         self.legende_ecran = tk.Label(gauche, text="", bg=GRIS, font=("Segoe UI", 12, "bold"),
                                       wraplength=TAILLE_ECRAN)
         self.legende_ecran.pack(pady=(0, 6))
@@ -131,7 +139,6 @@ class PokedexApp:
         self._onglet_pokedex()
         self._onglet_stats()
         self._onglet_image()
-        self._onglet_camera()
 
     def _afficher_ecran(self, image_pil=None, texte="", types=()):
         """Affiche une image (ou un texte) sur l'écran de gauche, + nom et badges de types."""
@@ -139,10 +146,10 @@ class PokedexApp:
             img = image_pil.copy()
             img.thumbnail((TAILLE_ECRAN, TAILLE_ECRAN))
             self._image_ecran = ImageTk.PhotoImage(img)
-            self.ecran.configure(image=self._image_ecran, text="", width=TAILLE_ECRAN, height=TAILLE_ECRAN)
+            self.ecran.configure(image=self._image_ecran, text="")
         else:
             self._image_ecran = None
-            self.ecran.configure(image="", text=texte or "?", width=24, height=12)
+            self.ecran.configure(image="", text=texte or "?")
         self.legende_ecran.configure(text=texte if image_pil is not None else "")
         for w in self.types_ecran.winfo_children():
             w.destroy()
@@ -342,22 +349,54 @@ class PokedexApp:
         ecrire(self.res_stats, "\n".join(txt))
         self._afficher_ecran(None, f"Groupe {r['groupe']}", [r["type_predit"]])
 
-    # ---------------------------------------------------- onglet 3 : image (niv. 2-3)
+    # ------------------------------------------- onglet 3 : image (niv. 2 et 3)
     def _onglet_image(self):
         f = ttk.Frame(self.onglets, padding=12)
-        self.onglets.add(f, text="Image (niv. 2)")
-        ttk.Button(f, text="Choisir une image…", command=self._choisir_image).pack(anchor="w")
-        self.res_image = tk.Text(f, width=70, height=20, font=POLICE, bg=ECRAN, fg=ECRAN_TEXTE, relief="flat")
+        self.onglets.add(f, text="Image (niv. 2-3)")
+
+        # Zone de dépôt : on y glisse l'image d'un Pokémon depuis l'explorateur Windows.
+        texte = ("Glisse-dépose ici l'image d'un Pokémon\n(ou clique pour en choisir une)"
+                 if TkinterDnD else
+                 "Clique ici pour choisir l'image d'un Pokémon\n"
+                 "(glisser-déposer indisponible : pip install tkinterdnd2)")
+        self.zone_depot = tk.Label(f, text=texte, bg="white", fg="#555555", font=("Segoe UI", 12),
+                                   relief="ridge", bd=3, height=4, cursor="hand2")
+        self.zone_depot.pack(fill="x")
+        self.zone_depot.bind("<Button-1>", lambda e: self._choisir_image())
+        if TkinterDnD:
+            # L'écran de gauche accepte aussi le dépôt
+            for w in (self.zone_depot, self.ecran):
+                w.drop_target_register(DND_FILES)
+                w.dnd_bind("<<Drop>>", self._deposer)
+
+        self.res_image = tk.Text(f, width=70, height=14, font=POLICE, bg=ECRAN, fg=ECRAN_TEXTE, relief="flat")
         self.res_image.pack(fill="both", expand=True, pady=8)
         self.bouton_fiche_img = ttk.Button(f, text="Voir la fiche du Pokémon reconnu", state="disabled")
         self.bouton_fiche_img.pack(anchor="w")
 
+    def _deposer(self, event):
+        """Appelé quand on lâche un fichier sur la zone de dépôt."""
+        # event.data contient le(s) chemin(s), avec des {} autour s'il y a des espaces
+        fichiers = self.fenetre.tk.splitlist(event.data)
+        if fichiers:
+            self.onglets.select(2)
+            self._ouvrir_image(fichiers[0])
+
     def _choisir_image(self):
-        if not self._reco_prete():
-            return
         chemin = filedialog.askopenfilename(filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp *.gif *.webp")])
         if chemin:
-            self._analyser_image(Image.open(chemin), self.res_image, self.bouton_fiche_img)
+            self._ouvrir_image(chemin)
+
+    def _ouvrir_image(self, chemin):
+        if not self._reco_prete():
+            return
+        try:
+            image = Image.open(chemin)
+            image.load()
+        except Exception as e:
+            messagebox.showerror("Image illisible", f"Impossible d'ouvrir ce fichier :\n{e}")
+            return
+        self._analyser_image(image, self.res_image, self.bouton_fiche_img)
 
     def _analyser_image(self, image_pil, zone_texte, bouton_fiche):
         """Analyse une image (niveau 2 : types ; niveau 3 : identification) et affiche le résultat."""
@@ -385,75 +424,10 @@ class PokedexApp:
         self._afficher_ecran(image_pil, f"{nom} ?" if not sur else nom, types_pred)
         bouton_fiche.configure(state="normal", command=lambda: self.montrer_pokemon(nom))
 
-    # --------------------------------------------------- onglet 4 : caméra (niv. 3)
-    def _onglet_camera(self):
-        f = ttk.Frame(self.onglets, padding=12)
-        self.onglets.add(f, text="Caméra (niv. 3)")
-        boutons = ttk.Frame(f)
-        boutons.pack(anchor="w")
-        self.bouton_cam = ttk.Button(boutons, text="Allumer la caméra", command=self._basculer_camera)
-        self.bouton_cam.pack(side="left")
-        ttk.Button(boutons, text="Capturer et identifier", command=self._capturer).pack(side="left", padx=8)
-        ttk.Label(f, foreground="gray", text=(
-            "Montre une image de Pokémon (écran de téléphone, carte, figurine...) à la webcam, "
-            "puis clique sur « Capturer ».")).pack(anchor="w", pady=4)
-        self.res_cam = tk.Text(f, width=70, height=16, font=POLICE, bg=ECRAN, fg=ECRAN_TEXTE, relief="flat")
-        self.res_cam.pack(fill="both", expand=True, pady=8)
-        self.bouton_fiche_cam = ttk.Button(f, text="Voir la fiche du Pokémon reconnu", state="disabled")
-        self.bouton_fiche_cam.pack(anchor="w")
-
-    def _basculer_camera(self):
-        if self.camera is not None:
-            self._arreter_camera()
-            return
-        try:
-            import cv2
-        except ImportError:
-            messagebox.showerror("Caméra", "OpenCV n'est pas installé : pip install opencv-python")
-            return
-        self.camera = cv2.VideoCapture(0)
-        if not self.camera.isOpened():
-            self.camera = None
-            messagebox.showerror("Caméra", "Aucune caméra trouvée (ou déjà utilisée par une autre appli).")
-            return
-        self.bouton_cam.configure(text="Éteindre la caméra")
-        self._image_camera()
-
-    def _image_camera(self):
-        """Lit une image de la webcam et l'affiche sur l'écran, ~25 fois par seconde."""
-        if self.camera is None:
-            return
-        import cv2
-        ok, frame = self.camera.read()
-        if ok:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # OpenCV donne du BGR
-            h, w = frame.shape[:2]
-            cote = min(h, w)                                 # recadrage carré au centre
-            frame = frame[(h - cote) // 2:(h + cote) // 2, (w - cote) // 2:(w + cote) // 2]
-            self._derniere_image = Image.fromarray(frame)
-            self._afficher_ecran(self._derniere_image, "Caméra")
-        self.fenetre.after(40, self._image_camera)
-
-    def _arreter_camera(self):
-        if self.camera is not None:
-            self.camera.release()
-        self.camera = None
-        self.bouton_cam.configure(text="Allumer la caméra")
-
-    def _capturer(self):
-        if not self._reco_prete():
-            return
-        if self._derniere_image is None:
-            messagebox.showinfo("Caméra", "Allume d'abord la caméra.")
-            return
-        image = self._derniere_image.copy()
-        self._arreter_camera()  # on fige l'image capturée
-        self._analyser_image(image, self.res_cam, self.bouton_fiche_cam)
-
     # --------------------------------------------------------- modèles d'images
     def _charger_reco(self):
         try:
-            from images_ml import ReconnaissanceImage
+            from niveau2_3.images_ml import ReconnaissanceImage
             self.reco = ReconnaissanceImage()
             self.erreur_reco = None
         except Exception as e:  # TensorFlow absent, modèles pas entraînés...
@@ -463,8 +437,8 @@ class PokedexApp:
         if self.reco is not None:
             self.canvas_haut.itemconfigure(self.statut, text="Tous les modèles sont prêts")
         elif self.erreur_reco and not self.erreur_reco.startswith("chargement"):
-            self.canvas_haut.itemconfigure(self.statut, text="Image/caméra indisponibles (voir onglet)")
-            for z in (self.res_image, self.res_cam):
+            self.canvas_haut.itemconfigure(self.statut, text="Onglet Image indisponible (voir l'onglet)")
+            for z in (self.res_image,):
                 ecrire(z, "Reconnaissance d'images indisponible :\n" + self.erreur_reco
                        + "\n\nVoir le README (installation de TensorFlow / entraînement).")
         else:
@@ -482,7 +456,6 @@ class PokedexApp:
         return True
 
     def fermer(self):
-        self._arreter_camera()
         self.fenetre.destroy()
 
 
@@ -500,7 +473,8 @@ def ecrire(zone, texte):
 
 
 def main():
-    fenetre = tk.Tk()
+    # Fenêtre compatible glisser-déposer si tkinterdnd2 est installé
+    fenetre = TkinterDnD.Tk() if TkinterDnD else tk.Tk()
     app = PokedexApp(fenetre)
     fenetre.protocol("WM_DELETE_WINDOW", app.fermer)
     fenetre.mainloop()

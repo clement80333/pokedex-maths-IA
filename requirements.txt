@@ -4,9 +4,10 @@ scikit-learn>=1.4
 matplotlib
 joblib
 pillow
-# niveaux 2 et 3 (images, caméra)
+# niveaux 2 et 3 (onglet Image) : TensorFlow fait tourner le réseau MobileNetV2
 tensorflow>=2.16
-opencv-python
+# glisser-déposer d'images dans l'appli (optionnel)
+tkinterdnd2
 # notebook
 jupyter
 nbformat
