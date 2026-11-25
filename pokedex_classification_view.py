@@ -222,8 +222,25 @@ class ClassificationView(tk.Frame):
 
         if cible == "Légendaire":
             message = f"Statut estimé : {prediction}"
+            probabilites = self.classificateur.predire_probabilites(
+                statistiques, cible, nom_modele
+            )
+            message += (
+                "\nProbabilité d'être légendaire : "
+                f"{probabilites.get('Légendaire', 0.0):.1%}"
+            )
         else:
             message = f"Type principal estimé : {prediction}"
+
+        groupe = self.classificateur.cluster_pour_statistiques(
+            statistiques, nombre_clusters=4
+        )
+        if groupe is not None:
+            message += (
+                f"\nGroupe statistique : Groupe {groupe['numero']} "
+                f"({groupe['nombre']} Pokémon, total moyen "
+                f"{groupe['total_moyen']:.1f})"
+            )
         self._afficher_message(nom_modele, message)
 
     def _expliquer(self, nom_modele):

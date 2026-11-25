@@ -24,6 +24,11 @@ class ClassificationModel(ABC):
     def predire(self, statistiques):
         """Retourne l'étiquette prédite pour un vecteur de statistiques."""
 
+    def predire_probabilites(self, statistiques):
+        """Retourne une estimation approximative des probabilités par classe."""
+        prediction = self.predire(statistiques)
+        return {prediction: 1.0}
+
 
 class KNearestNeighborsModel(ClassificationModel):
     """Vote pour la classe la plus fréquente parmi les voisins les plus proches."""
@@ -70,6 +75,24 @@ class KNearestNeighborsModel(ClassificationModel):
                 etiquette,
             ),
         )
+
+    def predire_probabilites(self, statistiques):
+        distances = [
+            (self._distance(statistiques, vecteur), etiquette)
+            for vecteur, etiquette in self.exemples
+        ]
+        voisins = sorted(distances)[:self.NOMBRE_VOISINS]
+        poids = {
+            etiquette: 0.0
+            for _distance, etiquette in voisins
+        }
+        for distance, etiquette in voisins:
+            poids[etiquette] += 1.0 / (1.0 + distance)
+        total = sum(poids.values())
+        return {
+            etiquette: poids[etiquette] / total
+            for etiquette in sorted(poids)
+        }
 
     @staticmethod
     def _distance(premier, second):
@@ -140,6 +163,27 @@ class GaussianNaiveBayesModel(ClassificationModel):
             probabilites, key=lambda etiquette: (probabilites[etiquette], etiquette)
         )
 
+    def predire_probabilites(self, statistiques):
+        scores = {}
+        for etiquette, (prior, moyennes, variances) in self.parametres_classes.items():
+            log_probabilite = math.log(prior)
+            for valeur, moyenne, variance in zip(statistiques, moyennes, variances):
+                log_probabilite -= 0.5 * (
+                    math.log(2 * math.pi * variance)
+                    + (valeur - moyenne) ** 2 / variance
+                )
+            scores[etiquette] = log_probabilite
+        maximum = max(scores.values())
+        exponentiels = {
+            etiquette: math.exp(score - maximum)
+            for etiquette, score in scores.items()
+        }
+        total = sum(exponentiels.values())
+        return {
+            etiquette: valeur / total
+            for etiquette, valeur in exponentiels.items()
+        }
+
 
 class CentroidModel(ClassificationModel):
     """Attribue la classe dont le centre moyen est le plus proche."""
@@ -179,6 +223,22 @@ class CentroidModel(ClassificationModel):
             ),
         )
 
+    def predire_probabilites(self, statistiques):
+        distances = {
+            etiquette: KNearestNeighborsModel._distance(statistiques, centre)
+            for etiquette, centre in self.centres.items()
+        }
+        minimum = min(distances.values())
+        poids = {
+            etiquette: math.exp(-(distance - minimum))
+            for etiquette, distance in distances.items()
+        }
+        total = sum(poids.values())
+        return {
+            etiquette: poids[etiquette] / total
+            for etiquette in sorted(poids)
+        }
+
 
 class DecisionTreeModel(ClassificationModel):
     """Pose des seuils successifs sur les stats pour atteindre une classe."""
@@ -214,6 +274,20 @@ class DecisionTreeModel(ClassificationModel):
             noeud = gauche if statistiques[index_stat] <= seuil else droite
         return noeud[1]
 
+    def predire_probabilites(self, statistiques):
+        noeud = self.racine
+        while noeud[0] == "noeud":
+            _, index_stat, seuil, gauche, droite = noeud
+            noeud = gauche if statistiques[index_stat] <= seuil else droite
+        if len(noeud) >= 3:
+            frequences = noeud[2]
+            total = sum(frequences.values())
+            return {
+                etiquette: nombre / total
+                for etiquette, nombre in sorted(frequences.items())
+            }
+        return {noeud[1]: 1.0}
+
     def _construire(self, exemples, profondeur):
         """Crée récursivement une feuille ou sépare les exemples en deux."""
         frequences = defaultdict(int)
@@ -227,7 +301,7 @@ class DecisionTreeModel(ClassificationModel):
             or profondeur >= self.PROFONDEUR_MAX
             or len(exemples) < self.EXEMPLES_MIN_PAR_FEUILLE * 2
         ):
-            return ("feuille", classe_majoritaire)
+            return ("feuille", classe_majoritaire, dict(frequences))
 
         indices_stats = list(range(len(STAT_COLUMNS)))
         if self.nombre_stats_par_coupure is not None:
@@ -237,7 +311,7 @@ class DecisionTreeModel(ClassificationModel):
             )
         coupure = self._meilleure_coupure(exemples, indices_stats)
         if coupure is None:
-            return ("feuille", classe_majoritaire)
+            return ("feuille", classe_majoritaire, dict(frequences))
 
         index_stat, seuil = coupure
         gauche = [
@@ -339,6 +413,13 @@ class RandomForestModel(ClassificationModel):
         for arbre in self.arbres:
             votes[arbre.predire(statistiques)] += 1
         return min(votes, key=lambda etiquette: (-votes[etiquette], etiquette))
+
+    def predire_probabilites(self, statistiques):
+        moyenne = defaultdict(float)
+        for arbre in self.arbres:
+            for etiquette, probabilite in arbre.predire_probabilites(statistiques).items():
+                moyenne[etiquette] += probabilite / len(self.arbres)
+        return dict(sorted(moyenne.items()))
 
 
 MODELE_CLASSES = {

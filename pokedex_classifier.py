@@ -106,6 +106,169 @@ class PokemonClassifier:
         )
         return resultat["modele"].predire(vecteur)
 
+    def predire_probabilites(self, statistiques, cible, nom_modele):
+        """Retourne les probabilités d'une prédiction pour la cible choisie."""
+        resultat = self.entrainer_et_evaluer(cible, nom_modele)
+        vecteur = self._normaliser(
+            [float(valeur) for valeur in statistiques],
+            resultat["moyennes"],
+            resultat["ecarts_types"],
+        )
+        return resultat["modele"].predire_probabilites(vecteur)
+
+    def obtenir_clusters(self, nombre_clusters=4):
+        """Regroupe les Pokémon avec k-moyennes sur les statistiques normalisées."""
+        if not 2 <= nombre_clusters <= len(self.pokemon):
+            raise ValueError(
+                "Le nombre de groupes doit être compris entre 2 et "
+                f"{len(self.pokemon)}."
+            )
+
+        vecteurs = [
+            [float(pokemon[colonne]) for _, colonne in STAT_COLUMNS]
+            for pokemon in self.pokemon
+        ]
+        moyennes = [
+            sum(vecteur[index] for vecteur in vecteurs) / len(vecteurs)
+            for index in range(len(STAT_COLUMNS))
+        ]
+        ecarts_types = [
+            math.sqrt(
+                sum(
+                    (vecteur[index] - moyennes[index]) ** 2
+                    for vecteur in vecteurs
+                ) / len(vecteurs)
+            )
+            for index in range(len(STAT_COLUMNS))
+        ]
+        ecarts_types = [ecart or 1.0 for ecart in ecarts_types]
+        normalises = [
+            [
+                (valeur - moyennes[index]) / ecarts_types[index]
+                for index, valeur in enumerate(vecteur)
+            ]
+            for vecteur in vecteurs
+        ]
+
+        generateur = random.Random(self.graine_aleatoire)
+        indices = list(range(len(normalises)))
+        generateur.shuffle(indices)
+        centres = [normalises[index][:] for index in indices[:nombre_clusters]]
+
+        affectations = [-1] * len(normalises)
+        for _ in range(100):
+            nouvelles_affectations = [
+                min(
+                    range(nombre_clusters),
+                    key=lambda index: (
+                        sum(
+                            (valeur - centres[index][dimension]) ** 2
+                            for dimension, valeur in enumerate(vecteur)
+                        ),
+                        index,
+                    ),
+                )
+                for vecteur in normalises
+            ]
+            if nouvelles_affectations == affectations:
+                break
+            affectations = nouvelles_affectations
+            nouveaux_centres = []
+            for index_cluster in range(nombre_clusters):
+                membres = [
+                    vecteur
+                    for vecteur, affectation in zip(normalises, affectations)
+                    if affectation == index_cluster
+                ]
+                if membres:
+                    nouveaux_centres.append([
+                        sum(vecteur[index] for vecteur in membres) / len(membres)
+                        for index in range(len(STAT_COLUMNS))
+                    ])
+                else:
+                    nouveaux_centres.append(centres[index_cluster][:])
+            centres = nouveaux_centres
+
+        groupes = defaultdict(list)
+        for pokemon, vecteur, affectation in zip(
+            self.pokemon, normalises, affectations
+        ):
+            groupes[affectation].append((pokemon, vecteur))
+
+        descriptions = []
+        groupes_ordonnes = sorted(
+            groupes.items(),
+            key=lambda element: (
+                sum(centres[element[0]][index] for index in range(len(STAT_COLUMNS))),
+                element[0],
+            ),
+        )
+        for numero, (index_cluster, membres) in enumerate(groupes_ordonnes, start=1):
+            total_moyen = sum(
+                sum(int(pokemon[colonne]) for _, colonne in STAT_COLUMNS)
+                for pokemon, _vecteur in membres
+            ) / len(membres)
+            legendaires = sum(
+                pokemon["Legendary"].strip().casefold() == "true"
+                for pokemon, _vecteur in membres
+            )
+            descriptions.append({
+                "numero": numero,
+                "ancien_index": index_cluster,
+                "nombre": len(membres),
+                "total_moyen": total_moyen,
+                "proportion_legendaire": legendaires / len(membres),
+                "membres": [pokemon for pokemon, _vecteur in membres],
+            })
+        return descriptions
+
+    def cluster_pour_statistiques(self, statistiques, nombre_clusters=4):
+        """Attribue une saisie au groupe dont le centre est le plus proche."""
+        groupes = self.obtenir_clusters(nombre_clusters)
+        vecteurs = [
+            [float(pokemon[colonne]) for _, colonne in STAT_COLUMNS]
+            for pokemon in self.pokemon
+        ]
+        moyennes = [
+            sum(vecteur[index] for vecteur in vecteurs) / len(vecteurs)
+            for index in range(len(STAT_COLUMNS))
+        ]
+        ecarts_types = [
+            math.sqrt(
+                sum((vecteur[index] - moyennes[index]) ** 2 for vecteur in vecteurs)
+                / len(vecteurs)
+            )
+            for index in range(len(STAT_COLUMNS))
+        ]
+        ecarts_types = [ecart or 1.0 for ecart in ecarts_types]
+        vecteur = [
+            (valeur - moyennes[index]) / ecarts_types[index]
+            for index, valeur in enumerate(statistiques)
+        ]
+
+        meilleure_distance = float("inf")
+        meilleur_groupe = None
+        for groupe in groupes:
+            membres = [
+                [
+                    (float(pokemon[colonne]) - moyennes[index]) / ecarts_types[index]
+                    for index, (_, colonne) in enumerate(STAT_COLUMNS)
+                ]
+                for pokemon in groupe["membres"]
+            ]
+            centre = [
+                sum(vecteur_membre[index] for vecteur_membre in membres) / len(membres)
+                for index in range(len(STAT_COLUMNS))
+            ]
+            distance = sum(
+                (valeur - centre[index]) ** 2
+                for index, valeur in enumerate(vecteur)
+            )
+            if distance < meilleure_distance:
+                meilleure_distance = distance
+                meilleur_groupe = groupe
+        return meilleur_groupe
+
     def obtenir_decoupage(self, cible):
         """Retourne le même partage stratifié à chaque appel pour cette cible."""
         if cible not in self.CIBLES:

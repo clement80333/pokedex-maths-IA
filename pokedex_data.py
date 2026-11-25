@@ -57,7 +57,7 @@ class PokedexData:
             sum(int(individu[colonne]) for _, colonne in STAT_COLUMNS)
             for individu in pokemon
         ) / nombre
-        return nombre, *moyennes, moyenne_totale
+        return (nombre, *moyennes, moyenne_totale)
 
     def calculer_moyennes_par_type(self):
         types = {}

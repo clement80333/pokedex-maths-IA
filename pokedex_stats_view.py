@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from pokedex_data import STAT_COLUMNS
+from pokedex_classifier import PokemonClassifier
 
 
 BG = "#f1f3f5"
@@ -85,7 +86,9 @@ class AverageStatsView(tk.Frame):
         tk.Label(
             self,
             text="Les doubles types comptent dans chaque type ; "
-                 "la ligne « Légendaires » regroupe les Pokémon légendaires.",
+                 "les quatre lignes « Groupe statistique » viennent du "
+                 "clustering k-moyennes ; « Légendaires » regroupe les "
+                 "Pokémon légendaires.",
             font=("Segoe UI", 9, "italic"), fg=MUTED, bg=BG
         ).pack(anchor="w", pady=(12, 0))
 
@@ -108,6 +111,16 @@ class AverageStatsView(tk.Frame):
 
     def _remplir(self):
         moyennes_types = self.donnees.calculer_moyennes_par_type()
+        groupes = PokemonClassifier(self.donnees.pokedex).obtenir_clusters(4)
+        for groupe in groupes:
+            moyennes_types.append(
+                (
+                    f"Groupe statistique {groupe['numero']}",
+                    *self.donnees.calculer_moyennes_statistiques(
+                        groupe["membres"]
+                    ),
+                )
+            )
         legendaires = [
             pokemon for pokemon in self.donnees.pokedex
             if pokemon["Legendary"].strip().casefold() == "true"
