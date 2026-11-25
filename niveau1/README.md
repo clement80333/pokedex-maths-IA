@@ -21,7 +21,7 @@ Le CSV utilisé est `../pokemon.csv` (racine du dépôt).
 
 ## Résultats principaux (validation croisée 5 plis, sur 80 % des données)
 
-- **Clustering** : k = 4 groupes (faibles / défensifs-lents / rapides-offensifs / surpuissants).
+- **Clustering** : k = 5 groupes (faibles / défensifs / endurants / rapides / surpuissants).
 - **Légendaire** : régression logistique retenue (PR-AUC ≈ 0,77, rappel ≈ 0,96).
 - **Type 1** : forêt aléatoire retenue, mais performances faibles (accuracy ≈ 22 %, top-3 ≈ 47 %) :
   les stats seules ne suffisent pas à déterminer le type.

@@ -81,10 +81,11 @@ PROPORTION_TEST = 0.2
 #  - le silhouette score est maximal pour k=2, mais ce découpage est trivial
 #    ("faibles" contre "forts") ;
 #  - la courbe du coude n'a pas de cassure nette ;
-#  - k=4 garde un silhouette correct et donne des groupes faciles à interpréter
-#    (faibles / défensifs / rapides-offensifs / surpuissants).
+#  - k=5 a un silhouette un peu meilleur que k=3, 4 et 6 (petit pic local) et donne
+#    des groupes faciles à interpréter (faibles / défensifs / endurants /
+#    rapides / surpuissants).
 # => C'est un CHOIX à justifier dans le rapport, pas une vérité absolue.
-NB_CLUSTERS = 4
+NB_CLUSTERS = 5
 
 
 # ---------------------------------------------------------------------------
@@ -161,9 +162,8 @@ def nommer_cluster(profil_z, total_moyen, total_global):
         niveau = "Intermédiaires"
 
     stat_forte = profil_z.idxmax()
-    stat_faible = profil_z.idxmin()
-    if stat_forte in ("Defense", "Sp. Def") or (stat_faible == "Speed" and ratio <= 1.25):
-        specialite = "défensifs / lents"
+    if stat_forte in ("Defense", "Sp. Def"):
+        specialite = "défensifs"
     elif stat_forte == "Speed":
         specialite = "rapides / offensifs"
     elif stat_forte in ("Attack", "Sp. Atk"):

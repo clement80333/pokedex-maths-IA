@@ -89,9 +89,9 @@ choix_k
 """)
 
 md("""
-**Choix de k = 4** (constante `NB_CLUSTERS` dans pokedex_ml.py) : le silhouette est maximal pour k = 2, mais ce découpage est trivial
-(« faibles » / « forts »). Le coude n'est pas net. k = 4 garde un silhouette correct et donne des groupes
-**interprétables**. Remarque honnête : un silhouette autour de 0,2 signifie que les groupes se
+**Choix de k = 5** (constante `NB_CLUSTERS` dans pokedex_ml.py) : le silhouette est maximal pour k = 2, mais ce découpage est trivial
+(« faibles » / « forts »). Le coude n'est pas net. k = 5 forme un petit pic local du silhouette
+(meilleur que k = 3, 4 et 6) et donne des groupes **interprétables**. Remarque honnête : un silhouette autour de 0,2 signifie que les groupes se
 chevauchent ; les stats des Pokémon forment plutôt un continuum que des groupes bien séparés.
 """)
 
@@ -126,8 +126,8 @@ plt.tight_layout(); plt.show()
 
 md("""
 **Interprétation** (à vérifier sur la sortie ci-dessus) : un groupe de Pokémon **faibles**
-(souvent des formes non évoluées), deux groupes **intermédiaires** qui se distinguent par leur style
-(défensifs et lents vs rapides et offensifs) et un groupe **surpuissant** qui contient presque tous les
+(souvent des formes non évoluées), trois groupes **intermédiaires** qui se distinguent par leur style
+(défensifs, endurants avec beaucoup de PV, rapides) et un groupe **surpuissant** qui contient presque tous les
 légendaires (et les Méga-évolutions). La 1re composante principale correspond en gros au Total.
 """)
 
