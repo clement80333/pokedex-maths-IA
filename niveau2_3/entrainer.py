@@ -104,7 +104,7 @@ def main():
 
     # Pokémon les moins bien reconnus (pour l'analyse des limites)
     pire = rappels_id[meilleur_id].sort_values().head(15).rename("taux_de_reconnaissance")
-    pire.to_csv(im.DOSSIER_RESULTATS / "niveau3_pokemon_les_moins_reconnus.csv")
+    pire.to_csv(im.DOSSIER_RESULTATS / "niveau3_pokemon_les_moins_reconnus.csv", index_label="pokemon")
 
     fig, ax = plt.subplots(figsize=(8, 4))
     rappels_id[meilleur_id].plot.hist(bins=20, ax=ax)

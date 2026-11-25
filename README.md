@@ -83,13 +83,11 @@ les dossiers `niveau1` et `niveau2_3` comme des paquets Python. Dans VS Code, ou
 
 | Tâche | Meilleure approche | Score |
 |---|---|---|
-| Identifier le Pokémon (niv. 3) | CNN + régression logistique | 85,5 % d'accuracy, 95,5 % en top 5, 98,5 % des Pokémon reconnus sur au moins la moitié de leurs images |
-| Types, Pokémon déjà vu (niv. 2) | Via l'identification | 89 % de types exactement justes |
-| Types, Pokémon jamais vu (niv. 2) | CNN + MLP | 27 % exacts, 49 % avec au moins un type juste (référence : 13 %) |
+| Identifier le Pokémon (niv. 3) | CNN + régression logistique | 83,6 % d'accuracy, 95,5 % en top 5, 99,3 % des Pokémon reconnus sur au moins la moitié de leurs images |
+| Types, Pokémon déjà vu (niv. 2) | Via l'identification | 87 % de types exactement justes |
+| Types, Pokémon jamais vu (niv. 2) | CNN + MLP | 27 % exacts, 52 % avec au moins un type juste (référence : 13 %) |
 
-Les modèles fournis ont été entraînés sur 15 888 images de **132 Pokémon**. Une dizaine de Pokémon du dataset
-manquent, parce que le transfert a été coupé. Pour tout ré-entraîner sur le dataset complet, relance
-`entrainer.py` (étape 2).
+Les modèles fournis ont été entraînés sur tout le dataset : 17 261 images, **142 Pokémon**.
 
 `scikit-learn` est fixé à la version 1.9.1 dans `requirements.txt` : les fichiers `.joblib` ne se rechargent de
 façon fiable qu'avec la version qui les a créés. Si tu changes de version, relance `entrainer.py`.
