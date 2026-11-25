@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+# cache des caractéristiques d images (gros fichier, recalculable)
+niveau2_3/cache_caracteristiques.npz
+.venv/

@@ -12,7 +12,7 @@ Code écrit d'après `Consignes.pdf` (niveau 1 = module Fondements mathématique
 ## Lancer
 
 ```bash
-pip install -r requirements.txt
+pip install -r ../requirements.txt   (le fichier est à la racine du dépôt)
 python app_pokedex_niveau1.py          # l'application
 jupyter notebook analyse_niveau1.ipynb # l'analyse
 ```
